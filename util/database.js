@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
 
-const sequelize = new Sequelize('node-complete', 'root', 'l0v3u4ever', {
+const sequelize = new Sequelize('node-complete', 'root', process.env.SEQ_PASSWORD, {
   dialect: 'mysql',
   host: 'localhost',
 });

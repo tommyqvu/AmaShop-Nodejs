@@ -7,7 +7,7 @@ const Order = sequelize.define("order",{
     autoIncrement: true,
     allowNull: false,
     primaryKey: true,
-  },
+  }
 })
 
 module.exports = Order

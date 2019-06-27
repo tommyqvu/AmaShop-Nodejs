@@ -14,6 +14,8 @@ const CartItem = require('./models/cartItem');
 const Order = require('./models/order');
 const OrderItem = require('./models/orderItem');
 
+const isAuth = require("./middleware/isAuth")
+const shopController = require("./controllers/shop")
 const app = express();
 
 const csrfProtection = csrf();
@@ -34,17 +36,41 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(
-  session({ secret: 'secretvalue', resave: false, saveUninitialized: false }),
+  session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false }),
 );
-app.use(csrfProtection);
 
 app.use((req, res, next) => {
   res.locals.isAuthenticated = req.session.isLoggedIn;
-  res.locals.csrfToken = req.csrfToken();
   next();
 });
 
+app.use((req, res, next) => {
+  // throw new Error('Sync Dummy');
+  if (!req.session.user) {
+    return next();
+  }
+  User.findByPk(req.session.user.id)
+    .then(user => {
+      if (!user) {
+        return next();
+      }
+      req.user = user;
+      next();
+    })
+    .catch(err => {
+      next(new Error(err));
+    });
+});
+
+app.post('/create-order',isAuth, shopController.postOrder);
+
+app.use(csrfProtection);
+app.use((req, res, next) => {
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
 app.use('/admin', adminRoutes);
+
 app.use(shopRoutes);
 app.use(authRoutes);
 

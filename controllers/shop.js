@@ -1,10 +1,11 @@
 const Product = require('../models/product');
 const User = require('../models/user');
+const Order = require('../models/order');
 const ITEMS_PER_PAGE = 1;
+const stripe = require('stripe')(process.env.STRIPE_TESTAPI);
 
 exports.getProducts = (req, res, next) => {
   const page = req.query.page || 1;
-  console.log(typeof page)
   let totalItems;
   Product.count().then(prodNumbers => {
     totalItems = prodNumbers;
@@ -51,7 +52,6 @@ exports.getIndex = (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   let totalItems;
   Product.count().then(prodNumbers => {
-    console.log(typeof page)
     totalItems = prodNumbers;
     Product.findAll({
       limit: ITEMS_PER_PAGE,
@@ -86,7 +86,6 @@ exports.getCart = (req, res, next) => {
         .getCart()
         .then(cart => cart.getProducts())
         .then(cartProducts => {
-          console.log(cartProducts);
           res.render('shop/cart', {
             path: '/cart',
             pageTitle: 'Your Cart',
@@ -153,6 +152,7 @@ exports.postCartDeleteProduct = (req, res, next) => {
 };
 
 exports.postOrder = (req, res, next) => {
+  const token = req.body.stripeToken;
   let fetchedCart;
   User.findByPk(req.session.user.id)
     .then(user => {
@@ -164,7 +164,7 @@ exports.postOrder = (req, res, next) => {
         })
         .then(products => {
           return user
-            .createOrder()
+            .createOrder({ userId: req.session.user.id })
             .then(order => {
               return order.addProducts(
                 products.map(product => {
@@ -173,12 +173,24 @@ exports.postOrder = (req, res, next) => {
                 }),
               );
             })
+            .then(result => {
+              let totalSum = 0;
+              products.forEach(product => {
+                totalSum += product.orderItem.quantity * product.price;
+              });
+              console.log("Uniquesum" + totalSum)
+              const charge = stripe.charges.create({
+                amount: totalSum * 100 ,
+                currency: 'usd',
+                source: token,
+                description: 'Charge for email@test.com',
+                metadata: { order_id: result.toString() },
+              });
+              fetchedCart.setProducts(null);
+              res.redirect('/orders');
+            })
             .catch(console.log);
-        })
-        .then(product => fetchedCart.setProducts(null))
-        .then(result => res.redirect('/orders'))
-
-        .catch(console.log);
+        }).catch(console.log);
     })
     .catch(console.log);
 };
@@ -200,11 +212,26 @@ exports.getOrders = (req, res, next) => {
     .catch(console.log);
 };
 
-// exports.getCheckout = (req, res, next) => {
-//   res.render('shop/checkout', {
-//     path: '/checkout',
-//     pageTitle: 'Checkout',
-//     isAuthenticated: req.session.isLoggedIn
-
-//   });
-// };
+exports.getCheckout = (req, res, next) => {
+  User.findByPk(req.session.user.id)
+    .then(user =>
+      user
+        .getCart()
+        .then(cart => cart.getProducts())
+        .then(cartProducts => {
+          let total = 0;
+          cartProducts.forEach(product => {
+            total += product.cartItem.quantity * product.price;
+          });
+          res.render('shop/checkout', {
+            path: '/checkout',
+            pageTitle: 'Checkout',
+            products: cartProducts,
+            isAuthenticated: req.session.isLoggedIn,
+            totalSum: total,
+          });
+        })
+        .catch(console.log),
+    )
+    .catch(console.log);
+};
