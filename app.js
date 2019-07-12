@@ -93,3 +93,5 @@ sequelize
   .sync()
   .then(cart => app.listen(3000))
   .catch(console.log);
+
+  

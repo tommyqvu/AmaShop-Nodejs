@@ -1,7 +1,7 @@
 const Product = require('../models/product');
 const User = require('../models/user');
 const Order = require('../models/order');
-const ITEMS_PER_PAGE = 1;
+const ITEMS_PER_PAGE = 3;
 const stripe = require('stripe')(process.env.STRIPE_TESTAPI);
 
 exports.getProducts = (req, res, next) => {
